@@ -9,4 +9,5 @@ public interface IUserService
     Task Save(UserDto user);
     Task Update(UserDto user);
     Task Delete(UserDto user);
+    Task<UserSimpleDto> Login(string loginOrEmail, string password);
 }

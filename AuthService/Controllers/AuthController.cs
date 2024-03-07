@@ -18,6 +18,16 @@ public class AuthController : ControllerBase
         _userService = userService;
     }
 
+    [HttpGet("login")]
+    public async Task<IActionResult> Login(string loginOrEmail, string password)
+    {
+        _logger.LogInformation($"logging in user: login/email:{loginOrEmail} - password: {password}");
+        var result = await _userService.Login(loginOrEmail, password);
+        if (result == null)
+            return NotFound();
+        return Ok(result);
+    }
+
     [HttpGet()]
     public async Task<IActionResult> GetAll()
     {

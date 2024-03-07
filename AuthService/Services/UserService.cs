@@ -47,4 +47,15 @@ public class UserService : IUserService
         var user = _mapper.Map<User>(userDto);
         await _userRepository.Delete(user);
     }
+
+    public async Task<UserSimpleDto> Login(string loginOrEmail, string password)
+    {
+        if (string.IsNullOrEmpty(loginOrEmail) || string.IsNullOrEmpty(password))
+            throw new ArgumentException("Login/Email and Password cannot be empty.");
+
+        var user = await _userRepository.GetOneByCriteria(a => (a.Login == loginOrEmail || a.Email == loginOrEmail) && a.Password == password);
+        if (user == null)
+            throw new ArgumentException("Incorret Login/Email or Password. Please try again...");
+        return _mapper.Map<UserSimpleDto>(user);
+    }
 }
