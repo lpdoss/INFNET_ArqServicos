@@ -19,6 +19,7 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
 builder.Services.AddScoped<IProductService, ProductService.Services.ProductService>();
 
+builder.Services.AddHostedService<RabbitMQConsumer_ConfirmStockEvent>();
 
 var app = builder.Build();
 

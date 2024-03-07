@@ -3,18 +3,24 @@ using PaymentService.Repositories;
 using PaymentService.Services.Dto;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Shared.RabbitMQ;
+using Shared.RabbitMQ.Events;
 
 namespace PaymentService.Services;
 
 public class OrderService : IOrderService
 {
     private readonly IOrderRepository _orderRepository;
+    private readonly IOrderItemRepository _orderItemRepository;
     private readonly IMapper _mapper;
+    private readonly IEventPublisher _eventPublisher;
 
-    public OrderService(IOrderRepository orderRepository, IMapper mapper)
+    public OrderService(IOrderRepository orderRepository, IOrderItemRepository orderItemRepository, IMapper mapper, IEventPublisher eventPublisher)
     {
         _orderRepository = orderRepository;
+        _orderItemRepository = orderItemRepository;
         _mapper = mapper;
+        _eventPublisher = eventPublisher;
     }
     public async Task<List<OrderDto>> GetAll()
     {
@@ -57,6 +63,10 @@ public class OrderService : IOrderService
         var order = _mapper.Map<Order>(orderDto);
         order.StatusId = 1; // Created
         await _orderRepository.Save(order);
+
+        var orderItems = await _orderItemRepository.GetAllByCriteria(a => a.OrderId == order.Id);
+        var confirmStockEvent = new ConfirmStockEvent(order.Id, orderItems.Select(a => new OrderStockItem(a.ProductId, a.Amount)).ToList());
+        await _eventPublisher.PublishAsync(confirmStockEvent, "confirmStock");
     }
 
     public async Task Update(OrderDto orderDto)
