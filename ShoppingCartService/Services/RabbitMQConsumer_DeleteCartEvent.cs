@@ -14,17 +14,15 @@ namespace ShoppingCartService.Services;
 public class RabbitMQConsumer_DeleteCartEvent : IDisposable, IHostedService
 {
     private readonly ILogger<RabbitMQConsumer_DeleteCartEvent> _logger;
-    private readonly ICartRepository _cartRepository;
-    private readonly ICartItemRepository _cartItemRepository;
+    private readonly IServiceProvider _serviceProvider;
     private readonly string _queueName = "deleteCart";
     private IConnection _connection;
     private IModel _consumerChannel;
 
-    public RabbitMQConsumer_DeleteCartEvent(ILogger<RabbitMQConsumer_DeleteCartEvent> logger, ICartRepository cartRepository, ICartItemRepository cartItemRepository)
+    public RabbitMQConsumer_DeleteCartEvent(ILogger<RabbitMQConsumer_DeleteCartEvent> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
-        _cartRepository = cartRepository;
-        _cartItemRepository = cartItemRepository;
+        _serviceProvider = serviceProvider;
     }
     public void Dispose()
     {
@@ -42,7 +40,8 @@ public class RabbitMQConsumer_DeleteCartEvent : IDisposable, IHostedService
                 {
                     HostName = "localhost",
                     UserName = "guest",
-                    Password = "guest"
+                    Password = "guest",
+                    DispatchConsumersAsync = true
                 };
                 _connection = factory.CreateConnection();
 
@@ -70,7 +69,11 @@ public class RabbitMQConsumer_DeleteCartEvent : IDisposable, IHostedService
                         var message = Encoding.UTF8.GetString(ea.Body.Span);
                         var @event = JsonSerializer.Deserialize<DeleteCartEvent>(message);
 
-                        var query = _cartRepository.GetQueryable();
+                        await using var scope = _serviceProvider.CreateAsyncScope();
+                        var cartRepository = scope.ServiceProvider.GetService<ICartRepository>();
+                        var cartItemRepository = scope.ServiceProvider.GetService<ICartItemRepository>();
+
+                        var query = cartRepository.GetQueryable();
                         query = query.Include(a => a.CartItems);
 
                         var cart = query.Where(a => a.UserId == @event.UserId).First();
@@ -82,14 +85,16 @@ public class RabbitMQConsumer_DeleteCartEvent : IDisposable, IHostedService
                             cart.CartItems = cart.CartItems.Except(cartItemsToRemove);
 
                             foreach(var cartItem in cartItemsToRemove)
-                                await _cartItemRepository.Delete(cartItem);
+                                await cartItemRepository.Delete(cartItem);
 
-                            await _cartRepository.Update(cart);
+                            await cartRepository.Update(cart);
                             
                         }
                         // Else delete the cart
                         else 
-                            await _cartRepository.Delete(cart);
+                            await cartRepository.Delete(cart);
+
+                        _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
                     }
                     catch (System.Exception ex)
                     {

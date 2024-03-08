@@ -25,6 +25,12 @@ public class EventPublisher : IEventPublisher
         using var channel = _connection?.CreateModel() ?? throw new InvalidOperationException("RabbitMQ connection is not open");
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(@event, @event.GetType());
         
+        channel.QueueDeclare(queue: queue,
+                                         durable: true,
+                                         exclusive: false,
+                                         autoDelete: false,
+                                         arguments: null);
+
         channel.BasicPublish(exchange: string.Empty,
                              routingKey: queue,
                              basicProperties: null,

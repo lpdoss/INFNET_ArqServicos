@@ -13,15 +13,15 @@ namespace PaymentService.Services;
 public class RabbitMQConsumer_ConfirmedStockEvent : IDisposable, IHostedService, IEventPublisher
 {
     private readonly ILogger<RabbitMQConsumer_ConfirmedStockEvent> _logger;
-    private readonly IOrderRepository _orderRepository;
+    private readonly IServiceProvider  _serviceProvider;
     private readonly string _queueName = "confirmedStock";
     private IConnection _connection;
     private IModel _consumerChannel;
 
-    public RabbitMQConsumer_ConfirmedStockEvent(ILogger<RabbitMQConsumer_ConfirmedStockEvent> logger, IOrderRepository orderRepository)
+    public RabbitMQConsumer_ConfirmedStockEvent(ILogger<RabbitMQConsumer_ConfirmedStockEvent> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
-        _orderRepository = orderRepository;
+        _serviceProvider = serviceProvider;
     }
     public void Dispose()
     {
@@ -37,6 +37,12 @@ public class RabbitMQConsumer_ConfirmedStockEvent : IDisposable, IHostedService,
         using var channel = _connection?.CreateModel() ?? throw new InvalidOperationException("RabbitMQ connection is not open");
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(@event, @event.GetType());
         
+        channel.QueueDeclare(queue: queue,
+                                         durable: true,
+                                         exclusive: false,
+                                         autoDelete: false,
+                                         arguments: null);
+                                         
         channel.BasicPublish(exchange: string.Empty,
                              routingKey: queue,
                              basicProperties: null,
@@ -55,7 +61,8 @@ public class RabbitMQConsumer_ConfirmedStockEvent : IDisposable, IHostedService,
                 {
                     HostName = "localhost",
                     UserName = "guest",
-                    Password = "guest"
+                    Password = "guest",
+                    DispatchConsumersAsync = true
                 };
                 _connection = factory.CreateConnection();
 
@@ -83,7 +90,10 @@ public class RabbitMQConsumer_ConfirmedStockEvent : IDisposable, IHostedService,
                         var message = Encoding.UTF8.GetString(ea.Body.Span);
                         var @event = JsonSerializer.Deserialize<ConfirmedStockEvent>(message);
     
-                        var query = _orderRepository.GetQueryable();
+                        await using var scope = _serviceProvider.CreateAsyncScope();
+                        var orderRepository = scope.ServiceProvider.GetService<IOrderRepository>();
+
+                        var query = orderRepository.GetQueryable();
                         query = query.Include(a => a.OrderItems);
                         var order = await query.Where(a => a.Id == @event.OrderId).FirstAsync();
     
@@ -94,10 +104,12 @@ public class RabbitMQConsumer_ConfirmedStockEvent : IDisposable, IHostedService,
                             Financial = order.OrderItems.Sum(a => a.Amount * a.Price)
                         };
     
-                        await _orderRepository.Update(order);
+                        await orderRepository.Update(order);
     
                         var deleteCartEvent = new DeleteCartEvent(order.UserId, order.OrderItems.Select(a => a.ProductId).ToList());
                         await PublishAsync(deleteCartEvent, "deleteCart");
+
+                        _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
                     }
                     catch (System.Exception ex)
                     {

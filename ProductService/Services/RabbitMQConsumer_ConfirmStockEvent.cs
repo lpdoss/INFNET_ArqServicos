@@ -14,15 +14,15 @@ namespace ProductService.Services;
 public class RabbitMQConsumer_ConfirmStockEvent : IDisposable, IHostedService, IEventPublisher
 {
     private readonly ILogger<RabbitMQConsumer_ConfirmStockEvent> _logger;
-    private readonly IProductRepository _productRepository;
+    private readonly IServiceProvider _serviceProvider;
     private readonly string _queueName = "confirmStock";
     private IConnection _connection;
     private IModel _consumerChannel;
 
-    public RabbitMQConsumer_ConfirmStockEvent(ILogger<RabbitMQConsumer_ConfirmStockEvent> logger, IProductRepository productRepository)
+    public RabbitMQConsumer_ConfirmStockEvent(ILogger<RabbitMQConsumer_ConfirmStockEvent> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
-        _productRepository = productRepository;
+        _serviceProvider = serviceProvider;
     }
     public void Dispose()
     {
@@ -38,6 +38,12 @@ public class RabbitMQConsumer_ConfirmStockEvent : IDisposable, IHostedService, I
         using var channel = _connection?.CreateModel() ?? throw new InvalidOperationException("RabbitMQ connection is not open");
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(@event, @event.GetType());
         
+        channel.QueueDeclare(queue: queue,
+                                         durable: true,
+                                         exclusive: false,
+                                         autoDelete: false,
+                                         arguments: null);
+
         channel.BasicPublish(exchange: string.Empty,
                              routingKey: queue,
                              basicProperties: null,
@@ -56,7 +62,8 @@ public class RabbitMQConsumer_ConfirmStockEvent : IDisposable, IHostedService, I
                 {
                     HostName = "localhost",
                     UserName = "guest",
-                    Password = "guest"
+                    Password = "guest",
+                    DispatchConsumersAsync = true
                 };
                 _connection = factory.CreateConnection();
 
@@ -84,10 +91,13 @@ public class RabbitMQConsumer_ConfirmStockEvent : IDisposable, IHostedService, I
                         var message = Encoding.UTF8.GetString(ea.Body.Span);
                         var @event = JsonSerializer.Deserialize<ConfirmStockEvent>(message);
 
+                        await using var scope = _serviceProvider.CreateAsyncScope();
+                        var productRepository = scope.ServiceProvider.GetService<IProductRepository>();
+
                         var productsToUpdate = new List<Product>();
                         foreach (var orderStockItem in @event.OrderStockItems)
                         {
-                            var product = await _productRepository.Get(orderStockItem.ProductId);
+                            var product = await productRepository.Get(orderStockItem.ProductId);
 
                             if (product.AmountInStock >= orderStockItem.Amount)
                             {
@@ -98,15 +108,18 @@ public class RabbitMQConsumer_ConfirmStockEvent : IDisposable, IHostedService, I
                             {
                                 var noStockEvent = new NoStockEvent(@event.OrderId);
                                 await PublishAsync(noStockEvent, "noStock");
+                                _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
                                 return;
                             }
                         }
                         
                         foreach (var product in productsToUpdate)
-                            await _productRepository.Update(product);
+                            await productRepository.Update(product);
     
                         var confirmedStockEvent = new ConfirmedStockEvent(@event.OrderId);
                         await PublishAsync(confirmedStockEvent, "confirmedStock");
+
+                        _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
                     }
                     catch (System.Exception ex)
                     {
@@ -116,7 +129,7 @@ public class RabbitMQConsumer_ConfirmStockEvent : IDisposable, IHostedService, I
 
                 _consumerChannel.BasicConsume(
                         queue: _queueName,
-                        autoAck: false,
+                        autoAck: true,
                         consumer: consumer);
                 _logger.LogInformation("Finish RabbitMQ connection on a background thread");
             

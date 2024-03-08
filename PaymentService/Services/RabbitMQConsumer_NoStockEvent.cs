@@ -13,15 +13,15 @@ namespace PaymentService.Services;
 public class RabbitMQConsumer_NoStockEvent : IDisposable, IHostedService, IEventPublisher
 {
     private readonly ILogger<RabbitMQConsumer_NoStockEvent> _logger;
-    private readonly IOrderRepository _orderRepository;
+    private readonly IServiceProvider  _serviceProvider;
     private readonly string _queueName = "noStock";
     private IConnection _connection;
     private IModel _consumerChannel;
 
-    public RabbitMQConsumer_NoStockEvent(ILogger<RabbitMQConsumer_NoStockEvent> logger, IOrderRepository orderRepository)
+    public RabbitMQConsumer_NoStockEvent(ILogger<RabbitMQConsumer_NoStockEvent> logger, IServiceProvider serviceProvider)
     {
         _logger = logger;
-        _orderRepository = orderRepository;
+        _serviceProvider = serviceProvider;
     }
     public void Dispose()
     {
@@ -37,6 +37,12 @@ public class RabbitMQConsumer_NoStockEvent : IDisposable, IHostedService, IEvent
         using var channel = _connection?.CreateModel() ?? throw new InvalidOperationException("RabbitMQ connection is not open");
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(@event, @event.GetType());
         
+        channel.QueueDeclare(queue: queue,
+                                         durable: true,
+                                         exclusive: false,
+                                         autoDelete: false,
+                                         arguments: null);
+                                         
         channel.BasicPublish(exchange: string.Empty,
                              routingKey: queue,
                              basicProperties: null,
@@ -55,7 +61,8 @@ public class RabbitMQConsumer_NoStockEvent : IDisposable, IHostedService, IEvent
                 {
                     HostName = "localhost",
                     UserName = "guest",
-                    Password = "guest"
+                    Password = "guest",
+                    DispatchConsumersAsync = true
                 };
                 _connection = factory.CreateConnection();
 
@@ -83,10 +90,15 @@ public class RabbitMQConsumer_NoStockEvent : IDisposable, IHostedService, IEvent
                         var message = Encoding.UTF8.GetString(ea.Body.Span);
                         var @event = JsonSerializer.Deserialize<NoStockEvent>(message);
     
-                        var order = await _orderRepository.Get(@event.OrderId);
+                        await using var scope = _serviceProvider.CreateAsyncScope();
+                        var orderRepository = scope.ServiceProvider.GetService<IOrderRepository>();
+
+                        var order = await orderRepository.Get(@event.OrderId);
                         
                         order.StatusId = 3; // Cancelled   
-                        await _orderRepository.Update(order);
+                        await orderRepository.Update(order);
+
+                        _consumerChannel.BasicAck(ea.DeliveryTag, multiple: false);
                     }
                     catch (System.Exception ex)
                     {
