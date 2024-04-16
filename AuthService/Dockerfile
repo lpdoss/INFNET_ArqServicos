@@ -7,8 +7,10 @@ ENV ASPNETCORE_URLS=http://+:5161
 USER app
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG configuration=Release
+RUN echo "$PWD"
 WORKDIR /src
-COPY ["AuthService.csproj", "AuthService/"]
+RUN echo "$PWD"
+COPY ["AuthService/AuthService.csproj", "AuthService/"]
 RUN dotnet restore "AuthService/AuthService.csproj"
 COPY . .
 WORKDIR "/src/AuthService"
