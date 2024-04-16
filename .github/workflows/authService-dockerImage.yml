@@ -15,8 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build the Docker image
-      working-directory: AuthService
-      run: docker build . --file ./Dockerfile --tag lpsantos/authservice:latest
+      run: docker build . --file ./AuthService/Dockerfile --tag lpsantos/authservice:latest
     
     - uses: docker/login-action@v3.1.0
       with:
