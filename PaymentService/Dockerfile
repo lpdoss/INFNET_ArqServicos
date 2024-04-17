@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
-EXPOSE 5165
+EXPOSE 5165/tcp
 
-ENV ASPNETCORE_URLS=http://+:5165
+ENV ASPNETCORE_URLS=http://*:5165
 
 USER app
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0 AS build
