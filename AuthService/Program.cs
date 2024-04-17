@@ -19,11 +19,11 @@ builder.Services.AddDbContext<AuthDbContext>(c => c.UseSqlServer(builderConfig["
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddHostedService<StartupBackgroundService>();
 
 builder.Services.AddHealthChecks()
                 .AddCheck<LivenessHealthCheck>("Liveness")
                 .AddCheck<StartupHealthCheck>("Readiness");
+builder.Services.AddHostedService<StartupBackgroundService>();
 
 var app = builder.Build();
 
