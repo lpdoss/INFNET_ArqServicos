@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authservice-deployment
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: authservice
+  template:
+    metadata:
+      labels:
+        app: authservice
+    spec:
+      containers:
+      - name: authservice
+        image: lpsantos/authservice:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5161
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 5161
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 5161
+          initialDelaySeconds: 0
+          periodSeconds: 20
+          timeoutSeconds: 1
+          failureThreshold: 3
+          successThreshold: 2
