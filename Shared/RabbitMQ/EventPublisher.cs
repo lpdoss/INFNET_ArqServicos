@@ -45,9 +45,9 @@ public class EventPublisher : IEventPublisher
                 _logger.LogInformation("Starting RabbitMQ connection on a background thread");
                 var factory = new ConnectionFactory()
                 {
-                    HostName = "localhost",
-                    UserName = "guest",
-                    Password = "guest"
+                    HostName = "10.106.13.47",
+                    UserName = "default_user_3L9Ivs_uIVj2FpPS8qS",
+                    Password = "APSzYWIn7CddEx57PF_PdXcuKz_EFGwT"
                 };
                 _connection = factory.CreateConnection();
 
