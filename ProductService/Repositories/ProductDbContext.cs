@@ -6,7 +6,8 @@ public class ProductDbContext : DbContext
 {
     public ProductDbContext(DbContextOptions<ProductDbContext> options) : base(options)
     {
-        
+
+        bool isFrozen = options.IsFrozen;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -16,6 +17,7 @@ public class ProductDbContext : DbContext
     }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
+        bool isConfigured = optionsBuilder.IsConfigured;
         base.OnConfiguring(optionsBuilder);
     }
 }

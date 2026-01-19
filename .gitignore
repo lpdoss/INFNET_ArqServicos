@@ -482,3 +482,10 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Ignore folder
+.mono
+.vscode
+
+# Ignore file by type
+*.deb
