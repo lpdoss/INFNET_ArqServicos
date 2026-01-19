@@ -1,0 +1,17 @@
+kind: RabbitmqCluster
+apiVersion: rabbitmq.com/v1beta1
+metadata:
+  name: rabbitmq
+  namespace: default
+spec:
+  replicas: 3
+  image: rabbitmq:3.9.18-management
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 2
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 1Gi

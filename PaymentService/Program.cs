@@ -32,11 +32,8 @@ builder.Services.AddHostedService<RabbitMQConsumer_NoStockEvent>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
 
 app.UseHttpsRedirection();
 

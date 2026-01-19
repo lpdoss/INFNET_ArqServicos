@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shoppingcartservice-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shoppingcartservice
+  template:
+    metadata:
+      labels:
+        app: shoppingcartservice
+    spec:
+      containers:
+      - name: shoppingcartservice
+        image: lpsantos/shoppingcartservice:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5169

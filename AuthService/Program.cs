@@ -19,15 +19,29 @@ builder.Services.AddDbContext<AuthDbContext>(c => c.UseSqlServer(builderConfig["
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddHostedService<StartupBackgroundService>();
+builder.Services.AddSingleton<StartupHealthCheck>();
+
+builder.Services.AddHealthChecks()
+                .AddCheck<LivenessHealthCheck>("Liveness")
+                .AddCheck<StartupHealthCheck>("Readiness");
 
 var app = builder.Build();
 
+app.MapHealthChecks("/healthz", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions(){
+    Predicate = healthCheck => healthCheck.Name == "Liveness"
+});
+app.MapHealthChecks("/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions(){
+    Predicate = healthCheck => healthCheck.Name == "Readiness"
+});
+
+
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+//if (app.Environment.IsDevelopment())
+//{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseAuthorization();
 
