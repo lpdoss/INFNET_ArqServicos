@@ -19,6 +19,7 @@ builder.Services.AddDbContext<AuthDbContext>(c => c.UseSqlServer(builderConfig["
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IUserService, UserService2>();
 builder.Services.AddHostedService<StartupBackgroundService>();
 builder.Services.AddSingleton<StartupHealthCheck>();
 
