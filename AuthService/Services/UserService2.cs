@@ -15,7 +15,7 @@ public class UserService2 : IUserService
         _userRepository = userRepository;
         _mapper = mapper;
     }
-    public async Task<List<UserDto>> GetAll()
+    public async Task<List<UserDto>> GetAllWithNewName()
     {
         var result = await _userRepository.GetAll();
         return _mapper.Map<List<UserDto>>(result);
